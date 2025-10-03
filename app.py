@@ -138,7 +138,18 @@ st.subheader("Data Preview")
 st.dataframe(base.tail(10), use_container_width=True)
 
 st.subheader("Price Chart")
-st.line_chart(base.set_index("date")["close"])  # Streamlit built-in line chart
+# Price chart with month+year axis (Altair)
+price_chart = (
+    alt.Chart(base)
+    .mark_line()
+    .encode(
+        x=alt.X('date:T', axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date'),
+                scale=alt.Scale(nice='month')),
+        y=alt.Y('close:Q', title='Price')
+    )
+    .properties(height=280)
+)
+st.altair_chart(price_chart, use_container_width=True)
 
 # =============================
 # Predict next day after the last date in the file
@@ -179,14 +190,10 @@ else:
         "predicted": preds_bt
     }).set_index("date")
 
-        # Metrics
+    # Metrics
     rmse = float(np.sqrt(np.mean((bt_df["actual"] - bt_df["predicted"])**2)))
     mae = float(np.mean(np.abs(bt_df["actual"] - bt_df["predicted"])))
-    # Guard against divide-by-zero in R²
-    denom = ((bt_df["actual"] - bt_df["actual"].mean())**2).sum()
-    r2 = float(1.0 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / denom) if denom != 0 else float("nan")
-
-    c1, c2, c3 = st.columns(3)
+    r2 = float(1 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / ((bt_df["actual"] - bt_df["actual"].mean())**2).sum())    c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE", f"{mae:,.2f}")
     c3.metric("R²", f"{r2:,.3f}")
@@ -195,13 +202,13 @@ else:
     st.markdown(
         f"""
         **How to read these numbers**
-        - **RMSE ≈ ${rmse:,.2f}** → typical daily error (penalizes larger misses).
-        - **MAE ≈ ${mae:,.2f}** → average absolute daily error.
+        - **RMSE ≈ \${rmse:,.2f}** → typical daily error (penalizes larger misses).
+        - **MAE ≈ \${mae:,.2f}** → average absolute daily error.
         - **R² ≈ {r2*100:.1f}%** → share of price movement explained by the model.
 
-        **Plain-English interpretation**
-        Over the last **{window_days} days**, the model’s next‑day predictions were off by about **\${mae:,.2f}–\${rmse:,.2f}** on average,
-        and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day‑to‑day moves,
+        **Plain-English interpretation**  
+        Over the last **{window_days} days**, the model’s next‑day predictions were off by about **\${mae:,.2f}–\${rmse:,.2f}** on average, 
+        and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day‑to‑day moves, 
         with small typical deviations.
         """
     )
@@ -212,7 +219,7 @@ else:
         alt.Chart(bt_long)
         .mark_line()
         .encode(
-            x=alt.X('date:T', axis=alt.Axis(format='%Y', title='Date')),
+            x=alt.X('date:T', axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date'), scale=alt.Scale(nice='month')),
             y=alt.Y('price:Q', title='Price'),
             color=alt.Color('series:N', title='Legend')
         )
@@ -227,12 +234,47 @@ else:
         alt.Chart(res_df)
         .mark_line()
         .encode(
-            x=alt.X('date:T', axis=alt.Axis(format='%Y', title='Date')),
+            x=alt.X('date:T', axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date'), scale=alt.Scale(nice='month')),
             y=alt.Y('residual:Q', title='Residual')
         )
         .properties(height=200)
     )
     st.altair_chart(res_chart, use_container_width=True)
+
+    # --- Auto Summary (dynamic) ---
+    st.subheader("Summary")
+    res_vals = (bt_df["actual"] - bt_df["predicted"]).values
+    mean_res = float(np.mean(res_vals))
+    std_res = float(np.std(res_vals))
+    max_abs = float(np.max(np.abs(res_vals)))
+    pct_within_5 = float((np.abs(res_vals) <= 5).mean() * 100)
+    pct_within_10 = float((np.abs(res_vals) <= 10).mean() * 100)
+
+    bias_note = (
+        "Errors are centered around 0 (no obvious bias)."
+        if abs(mean_res) < max(1.0, 0.1 * mae) else
+        ("Slight positive bias (model tends to underpredict)." if mean_res > 0 else "Slight negative bias (model tends to overpredict).")
+    )
+
+    st.markdown(
+        f"""
+        **Performance snapshot (last {window_days} days)**
+        - **RMSE:** \${rmse:,.2f}   
+        - **MAE:** \${mae:,.2f}   
+        - **R²:** {r2*100:.1f}%   
+        - **Residual spread (σ):** \${std_res:,.2f}   
+        - **Max absolute error:** \${max_abs:,.2f}   
+        - **Share of days within \$5 / \$10:** {pct_within_5:.1f}% / {pct_within_10:.1f}%
+
+        **Plain-English interpretation**  
+        Over the last **{window_days}** days, the model’s next‑day predictions were off by about **\${mae:,.2f}–\${rmse:,.2f}** on average,
+        and tracked **~{r2*100:.1f}%** of the variation in actual prices. {bias_note}
+
+        **What the residuals chart shows**  
+        Residuals (Actual − Predicted) fluctuating around 0 indicate mistakes are mostly random. Large spikes are rare and
+        are captured in the max error figure above.
+        """
+    )
 
 # =============================
 # Sidebar: About & Inputs Explained

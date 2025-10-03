@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import json
+import altair as alt
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Gold Price Prediction", layout="wide")
@@ -181,21 +182,53 @@ else:
     # Metrics
     rmse = float(np.sqrt(np.mean((bt_df["actual"] - bt_df["predicted"])**2)))
     mae = float(np.mean(np.abs(bt_df["actual"] - bt_df["predicted"])))
-    r2 = float(1 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / ((bt_df["actual"] - bt_df["actual"].mean())**2).sum())
-
-    c1, c2, c3 = st.columns(3)
+    r2 = float(1 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / ((bt_df["actual"] - bt_df["actual"].mean())**2).sum())    c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE", f"{mae:,.2f}")
     c3.metric("R²", f"{r2:,.3f}")
 
-    st.line_chart(bt_df[["actual", "predicted"]])
+    # --- Plain-English bullets and narrative that auto-update ---
+    st.markdown(
+        f"""
+        **How to read these numbers**
+        - **RMSE ≈ ${rmse:,.2f}** → typical daily error (penalizes larger misses).
+        - **MAE ≈ ${mae:,.2f}** → average absolute daily error.
+        - **R² ≈ {r2*100:.1f}%** → share of price movement explained by the model.
 
+        **Plain-English interpretation**  
+        Over the last **{window_days} days**, the model’s next‑day predictions were off by about **${mae:,.2f}–${rmse:,.2f}** on average, 
+        and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day‑to‑day moves, 
+        with small typical deviations.
+        """
+    )
+
+    # --- Price chart with year ticks (Altair) ---
+    bt_long = bt_df.reset_index().melt('date', var_name='series', value_name='price')
+    chart = (
+        alt.Chart(bt_long)
+        .mark_line()
+        .encode(
+            x=alt.X('date:T', axis=alt.Axis(format='%Y', title='Date')),
+            y=alt.Y('price:Q', title='Price'),
+            color=alt.Color('series:N', title='Legend')
+        )
+        .properties(height=280)
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+    # --- Residuals with year ticks ---
     st.markdown("**Residuals (Actual - Predicted)**")
-    res_df = pd.DataFrame({
-        "date": bt_df.index,
-        "residual": (bt_df["actual"] - bt_df["predicted"]).values
-    }).set_index("date")
-    st.line_chart(res_df)
+    res_df = bt_df.assign(residual=bt_df["actual"] - bt_df["predicted"]).reset_index()[["date","residual"]]
+    res_chart = (
+        alt.Chart(res_df)
+        .mark_line()
+        .encode(
+            x=alt.X('date:T', axis=alt.Axis(format='%Y', title='Date')),
+            y=alt.Y('residual:Q', title='Residual')
+        )
+        .properties(height=200)
+    )
+    st.altair_chart(res_chart, use_container_width=True)
 
 # =============================
 # Sidebar: About & Inputs Explained

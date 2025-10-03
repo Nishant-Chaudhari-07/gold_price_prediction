@@ -204,7 +204,7 @@ else:
     # Plain-English summary
     st.markdown(
         f"""
-        **How to read these numbers**
+        **Aanlysis**
         - **RMSE ≈ \\${rmse:,.2f}** → typical daily error (penalizes larger misses).
         - **MAE ≈ \\${mae:,.2f}** → average absolute daily error.
         - **R² ≈ {r2*100:.1f}%** → share of price movement explained by the model.
@@ -268,7 +268,7 @@ else:
 
     st.markdown(
         f"""
-        **What this chart means**  
+        **Analysis**  
         Each point shows **Actual − Predicted** for that day. Values **above 0** mean the model **under-predicted** (actual was higher);
         values **below 0** mean it **over-predicted**. A healthy model shows residuals wiggling around **0** without a clear trend.
 

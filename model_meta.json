@@ -1,0 +1,44 @@
+{
+  "created_at": "2025-10-03T10:04:09.264213Z",
+  "best_model_name": "LinearRegression",
+  "features_in_order": [
+    "year",
+    "month",
+    "dayofweek",
+    "lag_1",
+    "lag_3",
+    "lag_5",
+    "lag_7",
+    "lag_14",
+    "lag_21",
+    "lag_30",
+    "rollmean_3",
+    "rollstd_3",
+    "rollmean_5",
+    "rollstd_5",
+    "rollmean_7",
+    "rollstd_7",
+    "rollmean_14",
+    "rollstd_14",
+    "rollmean_21",
+    "rollstd_21",
+    "rollmean_30",
+    "rollstd_30",
+    "ret_1",
+    "ret_7",
+    "ret_14",
+    "rsi_14",
+    "atr_14"
+  ],
+  "target": "close",
+  "test_metrics": {
+    "RMSE": 3.7682287431576458,
+    "MAE": 2.7289364772614695,
+    "R2": 0.9973239182077902
+  },
+  "baseline_metrics": {
+    "RMSE": 16.651814190990482,
+    "MAE": 12.133855185909976,
+    "R2": 0.9477425781667987
+  }
+}

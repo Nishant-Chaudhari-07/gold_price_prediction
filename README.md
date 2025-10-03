@@ -16,7 +16,6 @@ The app provides:
 - 📉 Model performance metrics (RMSE, MAE, R²)  
 - 📋 Residuals analysis with plain-English explanations  
 
----
 
 ## ✨ Key Features
 - **End-to-End ML Pipeline**

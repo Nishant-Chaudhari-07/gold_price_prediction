@@ -3,7 +3,6 @@
 This project builds a **machine learning–driven forecasting system** for daily gold prices using historical data (2013–2023).  
 It demonstrates the full lifecycle of a predictive analytics solution — from **data cleaning and feature engineering** to **model training, evaluation, and deployment** via a Streamlit app.
 
----
 
 ## 🚀 Project Overview
 - **Objective**: Predict next-day gold prices to support financial analysis, risk management, and trading decisions.  
@@ -63,7 +62,7 @@ MAE (Mean Absolute Error): ~$2–$4 average daily miss.
 
 Residual plots show errors are mostly random and centered near 0, meaning the model generalizes well without systematic bias.
 
-💡 Use Cases
+##💡 Use Cases
 
 Finance & Trading: Support trading strategies with predictive insights.
 

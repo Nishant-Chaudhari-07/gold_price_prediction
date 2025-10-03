@@ -212,7 +212,7 @@ else:
         - **MAE ≈ \\${mae:,.2f}** → average absolute daily error.
         - **R² ≈ {r2*100:.1f}%** → share of price movement explained by the model.
 
-        **Plain-English interpretation**  
+        **Interpretation**  
         Over the last **{window_days} days**, the model’s next-day predictions were off by about **\\${mae:,.2f}–\\${rmse:,.2f}** on average,
         and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day-to-day moves,
         with small typical deviations.

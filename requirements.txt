@@ -6,3 +6,4 @@ matplotlib
 streamlit
 joblib
 altair
+altair>=5

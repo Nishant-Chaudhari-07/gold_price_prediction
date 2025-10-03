@@ -114,6 +114,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 # =============================
 @st.cache_data(show_spinner=False)
 def load_data(path: str):
+    base["date"] = pd.to_datetime(base["date"], errors="coerce")
     base = pd.read_csv(path)
     base = standardize_columns(base)
     fe = add_features(base)
@@ -143,8 +144,10 @@ price_chart = (
     alt.Chart(base)
     .mark_line()
     .encode(
-        x=alt.X('date:T', axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date'),
-                scale=alt.Scale(nice='month')),
+        x=alt.X(
+            'yearmonth(date):T',
+            axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date')
+        ),
         y=alt.Y('close:Q', title='Price')
     )
     .properties(height=280)
@@ -215,31 +218,43 @@ else:
 
     # --- Price chart with year ticks (Altair) ---
     bt_long = bt_df.reset_index().melt('date', var_name='series', value_name='price')
-    chart = (
-        alt.Chart(bt_long)
-        .mark_line()
-        .encode(
-            x=alt.X('date:T', axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date'), scale=alt.Scale(nice='month')),
-            y=alt.Y('price:Q', title='Price'),
-            color=alt.Color('series:N', title='Legend')
-        )
-        .properties(height=280)
+bt_long["date"] = pd.to_datetime(bt_long["date"], errors="coerce")
+
+chart = (
+    alt.Chart(bt_long)
+    .mark_line()
+    .encode(
+        x=alt.X(
+            'yearmonth(date):T',
+            axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date')
+        ),
+        y=alt.Y('price:Q', title='Price'),
+        color=alt.Color('series:N', title='Legend')
     )
-    st.altair_chart(chart, use_container_width=True)
+    .properties(height=280)
+)
+st.altair_chart(chart, use_container_width=True)
+
 
     # --- Residuals with year ticks ---
     st.markdown("**Residuals (Actual - Predicted)**")
     res_df = bt_df.assign(residual=bt_df["actual"] - bt_df["predicted"]).reset_index()[["date","residual"]]
-    res_chart = (
-        alt.Chart(res_df)
-        .mark_line()
-        .encode(
-            x=alt.X('date:T', axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date'), scale=alt.Scale(nice='month')),
-            y=alt.Y('residual:Q', title='Residual')
-        )
-        .properties(height=200)
+res_df["date"] = pd.to_datetime(res_df["date"], errors="coerce")
+
+res_chart = (
+    alt.Chart(res_df)
+    .mark_line()
+    .encode(
+        x=alt.X(
+            'yearmonth(date):T',
+            axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date')
+        ),
+        y=alt.Y('residual:Q', title='Residual')
     )
-    st.altair_chart(res_chart, use_container_width=True)
+    .properties(height=200)
+)
+st.altair_chart(res_chart, use_container_width=True)
+
 
     # --- Auto Summary (dynamic) ---
     st.subheader("Summary")

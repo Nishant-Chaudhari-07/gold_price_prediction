@@ -33,7 +33,6 @@ The app provides:
   - Metadata stored in `.json` for feature alignment and model info
   - Streamlit app for instant predictions
 
----
 
 ## 📂 File Structure
 ```bash
@@ -50,6 +49,7 @@ Gold-Price-Prediction/
 │
 ├── README.md                   # Project documentation (this file)
 
+```bash
 
 📊 Model Performance
 

@@ -49,7 +49,7 @@ Gold-Price-Prediction/
 │
 ├── README.md                   # Project documentation (this file)
 
-```bash
+```
 
 📊 Model Performance
 

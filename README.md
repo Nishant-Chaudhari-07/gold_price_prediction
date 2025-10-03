@@ -51,7 +51,7 @@ Gold-Price-Prediction/
 
 ```
 
-📊 Model Performance
+## 📊 Model Performance
 
 R² ≈ 0.92–0.99 depending on the backtest window.
 

@@ -179,10 +179,14 @@ else:
         "predicted": preds_bt
     }).set_index("date")
 
-    # Metrics
+        # Metrics
     rmse = float(np.sqrt(np.mean((bt_df["actual"] - bt_df["predicted"])**2)))
     mae = float(np.mean(np.abs(bt_df["actual"] - bt_df["predicted"])))
-    r2 = float(1 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / ((bt_df["actual"] - bt_df["actual"].mean())**2).sum())    c1, c2, c3 = st.columns(3)
+    # Guard against divide-by-zero in R²
+    denom = ((bt_df["actual"] - bt_df["actual"].mean())**2).sum()
+    r2 = float(1.0 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / denom) if denom != 0 else float("nan")
+
+    c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE", f"{mae:,.2f}")
     c3.metric("R²", f"{r2:,.3f}")
@@ -196,8 +200,8 @@ else:
         - **R² ≈ {r2*100:.1f}%** → share of price movement explained by the model.
 
         **Plain-English interpretation**  
-        Over the last **{window_days} days**, the model’s next‑day predictions were off by about **${mae:,.2f}–${rmse:,.2f}** on average, 
-        and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day‑to‑day moves, 
+        Over the last **{window_days} days**, the model’s next-day predictions were off by about **${mae:,.2f}–${rmse:,.2f}** on average,
+        and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day-to-day moves,
         with small typical deviations.
         """
     )

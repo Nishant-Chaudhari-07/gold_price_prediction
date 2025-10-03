@@ -44,7 +44,6 @@ def coerce_numeric_col(series: pd.Series) -> pd.Series:
     cleaned = cleaned.replace({"": np.nan, ".": np.nan, "-": np.nan})
     return pd.to_numeric(cleaned, errors="coerce")
 
-
 def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
@@ -57,7 +56,12 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("No date-like column found. Column name should contain 'date'.")
     dcol = date_cols[0]
     df[dcol] = pd.to_datetime(df[dcol], errors="coerce")
-    df = df.dropna(subset=[dcol]).sort_values(dcol).drop_duplicates(subset=[dcol]).reset_index(drop=True)
+    df = (
+        df.dropna(subset=[dcol])
+          .sort_values(dcol)
+          .drop_duplicates(subset=[dcol])
+          .reset_index(drop=True)
+    )
     # rename target close column to 'close'
     price_cols = [c for c in [
         "close", "adj_close", "price", "close_price", "closing_price", "gold_price", "gold_price_usd"
@@ -67,7 +71,6 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
     if price_cols[0] != "close":
         df = df.rename(columns={price_cols[0]: "close"})
     return df.rename(columns={dcol: "date"})
-
 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
     fe = df[["date", "close"]].copy()
@@ -138,7 +141,18 @@ st.subheader("Data Preview")
 st.dataframe(base.tail(10), use_container_width=True)
 
 st.subheader("Price Chart")
-st.line_chart(base.set_index("date")["close"])  # Streamlit built-in line chart
+# Altair chart with month + year ticks
+price_chart = (
+    alt.Chart(base)
+    .mark_line()
+    .encode(
+        x=alt.X('yearmonth(date):T',
+                axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date')),
+        y=alt.Y('close:Q', title='Price')
+    )
+    .properties(height=280)
+)
+st.altair_chart(price_chart, use_container_width=True)
 
 # =============================
 # Predict next day after the last date in the file
@@ -182,7 +196,10 @@ else:
     # Metrics
     rmse = float(np.sqrt(np.mean((bt_df["actual"] - bt_df["predicted"])**2)))
     mae = float(np.mean(np.abs(bt_df["actual"] - bt_df["predicted"])))
-    r2 = float(1 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / ((bt_df["actual"] - bt_df["actual"].mean())**2).sum())    c1, c2, c3 = st.columns(3)
+    denom = ((bt_df["actual"] - bt_df["actual"].mean())**2).sum()
+    r2 = float(1.0 - ((bt_df["actual"] - bt_df["predicted"])**2).sum() / denom) if denom != 0 else float("nan")
+
+    c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse:,.2f}")
     c2.metric("MAE", f"{mae:,.2f}")
     c3.metric("R²", f"{r2:,.3f}")
@@ -191,24 +208,25 @@ else:
     st.markdown(
         f"""
         **How to read these numbers**
-        - **RMSE ≈ ${rmse:,.2f}** → typical daily error (penalizes larger misses).
-        - **MAE ≈ ${mae:,.2f}** → average absolute daily error.
+        - **RMSE ≈ \\${rmse:,.2f}** → typical daily error (penalizes larger misses).
+        - **MAE ≈ \\${mae:,.2f}** → average absolute daily error.
         - **R² ≈ {r2*100:.1f}%** → share of price movement explained by the model.
 
         **Plain-English interpretation**  
-        Over the last **{window_days} days**, the model’s next‑day predictions were off by about **${mae:,.2f}–${rmse:,.2f}** on average, 
-        and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day‑to‑day moves, 
+        Over the last **{window_days} days**, the model’s next-day predictions were off by about **\\${mae:,.2f}–\\${rmse:,.2f}** on average,
+        and tracked **~{r2*100:.1f}%** of the variation in actual prices. That means the predictions closely follow day-to-day moves,
         with small typical deviations.
         """
     )
 
-    # --- Price chart with year ticks (Altair) ---
+    # --- Backtest price chart (Altair; month + year) ---
     bt_long = bt_df.reset_index().melt('date', var_name='series', value_name='price')
     chart = (
         alt.Chart(bt_long)
         .mark_line()
         .encode(
-            x=alt.X('date:T', axis=alt.Axis(format='%Y', title='Date')),
+            x=alt.X('yearmonth(date):T',
+                    axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date')),
             y=alt.Y('price:Q', title='Price'),
             color=alt.Color('series:N', title='Legend')
         )
@@ -216,19 +234,48 @@ else:
     )
     st.altair_chart(chart, use_container_width=True)
 
-    # --- Residuals with year ticks ---
+    # --- Residuals (Actual - Predicted) ---
     st.markdown("**Residuals (Actual - Predicted)**")
     res_df = bt_df.assign(residual=bt_df["actual"] - bt_df["predicted"]).reset_index()[["date","residual"]]
     res_chart = (
         alt.Chart(res_df)
         .mark_line()
         .encode(
-            x=alt.X('date:T', axis=alt.Axis(format='%Y', title='Date')),
+            x=alt.X('yearmonth(date):T',
+                    axis=alt.Axis(format='%b %Y', labelAngle=-30, title='Date')),
             y=alt.Y('residual:Q', title='Residual')
         )
         .properties(height=200)
     )
     st.altair_chart(res_chart, use_container_width=True)
+
+    # --- Residuals summary & simple-English explanation (auto-updating) ---
+    res_vals = (bt_df["actual"] - bt_df["predicted"]).values
+    mean_res = float(np.mean(res_vals))
+    std_res = float(np.std(res_vals))
+    max_abs = float(np.max(np.abs(res_vals)))
+    pct_within_5 = float((np.abs(res_vals) <= 5).mean() * 100)
+
+    bias_note = (
+        "Errors are centered around 0 (no obvious bias)."
+        if abs(mean_res) < max(1.0, 0.1 * mae) else
+        ("Slight positive bias (model tends to under-predict)." if mean_res > 0
+         else "Slight negative bias (model tends to over-predict).")
+    )
+
+    st.markdown(
+        f"""
+        **What this chart means**  
+        Each point shows **Actual − Predicted** for that day. Values **above 0** mean the model **under-predicted** (actual was higher);
+        values **below 0** mean it **over-predicted**. A healthy model shows residuals wiggling around **0** without a clear trend.
+
+        **For this window:**  
+        • Average residual ≈ **{mean_res:,.2f}**  • Std. dev. ≈ **{std_res:,.2f}**  
+        • **{pct_within_5:.1f}%** of days are within **\\$5** of the actual price  
+        • Worst miss ≈ **\\${max_abs:,.2f}**  
+        • {bias_note}
+        """
+    )
 
 # =============================
 # Sidebar: About & Inputs Explained

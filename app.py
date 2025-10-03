@@ -4,9 +4,12 @@ import numpy as np
 import joblib
 import json
 import altair as alt
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 st.set_page_config(page_title="Gold Price Prediction", layout="wide")
+
+# Avoid Altair row limits / sampling surprises
+alt.data_transformers.disable_max_rows()
 
 # =============================
 # Config — FIXED DATA SOURCE
@@ -43,17 +46,19 @@ def coerce_numeric_col(series: pd.Series) -> pd.Series:
 def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-    # coerce likely numeric cols
     for c in [c for c in NUMERIC_CANDIDATES if c in df.columns]:
         df[c] = coerce_numeric_col(df[c])
-    # parse date column
     date_cols = [c for c in df.columns if "date" in c]
     if not date_cols:
-        raise ValueError("No date-like column found. Column name should contain 'date'.")
+        raise ValueError("No date-like column found. A column name should contain 'date'.")
     dcol = date_cols[0]
     df[dcol] = pd.to_datetime(df[dcol], errors="coerce")
-    df = df.dropna(subset=[dcol]).sort_values(dcol).drop_duplicates(subset=[dcol]).reset_index(drop=True)
-    # rename target close column to 'close'
+    df = (
+        df.dropna(subset=[dcol])
+          .sort_values(dcol)
+          .drop_duplicates(subset=[dcol])
+          .reset_index(drop=True)
+    )
     price_cols = [c for c in [
         "close", "adj_close", "price", "close_price", "closing_price", "gold_price", "gold_price_usd"
     ] if c in df.columns]
@@ -89,7 +94,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     rs = avg_gain / (avg_loss.replace(0, np.nan))
     fe["rsi_14"] = 100 - (100 / (1 + rs))
 
-    # ATR 14 (requires OHLC). If original df has it, compute.
+    # ATR 14 (if OHLC exists)
     if set(["high", "low", "close"]).issubset(df.columns):
         tmp = df[["date", "high", "low", "close"]].copy().sort_values("date")
         prev_close = tmp["close"].shift(1)
@@ -119,9 +124,6 @@ except Exception as e:
     st.error(f"Failed to load fixed dataset at '{DATA_PATH}': {e}")
     st.stop()
 
-# Ensure datetime dtype
-base["date"] = pd.to_datetime(base["date"], errors="coerce")
-
 # =============================
 # UI Header
 # =============================
@@ -129,20 +131,21 @@ st.title("Gold Price Prediction – Fixed Dataset")
 st.caption(f"Model: {BEST_MODEL_NAME} · Data: {DATA_PATH}")
 
 # =============================
-# Data Preview & Chart
+# Data Preview & Price Chart (daily data; pretty month-year labels)
 # =============================
 st.subheader("Data Preview")
 st.dataframe(base.tail(10), use_container_width=True)
 
 st.subheader("Price Chart")
-# Altair with month + short year labels like Jan '20
 price_chart = (
     alt.Chart(base)
     .mark_line()
     .encode(
-        x=alt.X('yearmonth(date):T',
+        x=alt.X('date:T',
                 axis=alt.Axis(format="%b '%y", labelAngle=-30, title='Date')),
-        y=alt.Y('close:Q', title='Price')
+        y=alt.Y('close:Q', title='Price'),
+        tooltip=[alt.Tooltip('date:T', title='Date', format="%b %d, %Y"),
+                 alt.Tooltip('close:Q', title='Close', format=",.2f")]
     )
     .properties(height=280)
 )
@@ -198,7 +201,7 @@ else:
     c2.metric("MAE", f"{mae:,.2f}")
     c3.metric("R²", f"{r2:,.3f}")
 
-    # --- Plain-English bullets and narrative that auto-update ---
+    # Plain-English summary
     st.markdown(
         f"""
         **How to read these numbers**
@@ -213,41 +216,71 @@ else:
         """
     )
 
-    # --- Backtest price chart (Altair; month + short year) ---
+    # Backtest chart (two daily series, no aggregation)
     bt_long = bt_df.reset_index().melt('date', var_name='series', value_name='price')
-    bt_long["date"] = pd.to_datetime(bt_long["date"], errors="coerce")
-    chart = (
+    backtest_chart = (
         alt.Chart(bt_long)
         .mark_line()
         .encode(
-            x=alt.X('yearmonth(date):T',
+            x=alt.X('date:T',
                     axis=alt.Axis(format="%b '%y", labelAngle=-30, title='Date')),
             y=alt.Y('price:Q', title='Price'),
-            color=alt.Color('series:N', title='Legend')
+            color=alt.Color('series:N', title='Legend'),
+            detail='series:N',  # keep lines separate; avoid aggregation
+            tooltip=[alt.Tooltip('date:T', title='Date', format="%b %d, %Y"),
+                     alt.Tooltip('series:N', title='Series'),
+                     alt.Tooltip('price:Q', title='Price', format=",.2f")]
         )
         .properties(height=280)
     )
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(backtest_chart, use_container_width=True)
 
-    # --- Residuals (Actual - Predicted) ---
+    # Residuals (daily; no aggregation)
     st.markdown("**Residuals (Actual - Predicted)**")
     res_df = bt_df.assign(residual=bt_df["actual"] - bt_df["predicted"]).reset_index()[["date","residual"]]
-    res_df["date"] = pd.to_datetime(res_df["date"], errors="coerce")
-    res_chart = (
+    residuals_chart = (
         alt.Chart(res_df)
         .mark_line()
         .encode(
-            x=alt.X('yearmonth(date):T',
+            x=alt.X('date:T',
                     axis=alt.Axis(format="%b '%y", labelAngle=-30, title='Date')),
-            y=alt.Y('residual:Q', title='Residual')
+            y=alt.Y('residual:Q', title='Residual'),
+            tooltip=[alt.Tooltip('date:T', title='Date', format="%b %d, %Y"),
+                     alt.Tooltip('residual:Q', title='Residual', format=",.2f")]
         )
         .properties(height=200)
     )
-    st.altair_chart(res_chart, use_container_width=True)
+    st.altair_chart(residuals_chart, use_container_width=True)
 
-# =============================
+    # Residuals explanation (auto-updating)
+    res_vals = (bt_df["actual"] - bt_df["predicted"]).values
+    mean_res = float(np.mean(res_vals))
+    std_res = float(np.std(res_vals))
+    max_abs = float(np.max(np.abs(res_vals)))
+    pct_within_5 = float((np.abs(res_vals) <= 5).mean() * 100)
+
+    bias_note = (
+        "Errors are centered around 0 (no obvious bias)."
+        if abs(mean_res) < max(1.0, 0.1 * mae) else
+        ("Slight positive bias (model tends to under-predict)." if mean_res > 0
+         else "Slight negative bias (model tends to over-predict).")
+    )
+
+    st.markdown(
+        f"""
+        **What this chart means**  
+        Each point shows **Actual − Predicted** for that day. Values **above 0** mean the model **under-predicted** (actual was higher);
+        values **below 0** mean it **over-predicted**. A healthy model shows residuals wiggling around **0** without a clear trend.
+
+        **For this window:**  
+        • Average residual ≈ **{mean_res:,.2f}**  • Std. dev. ≈ **{std_res:,.2f}**  
+        • **{pct_within_5:.1f}%** of days are within **\\$5** of the actual price  
+        • Worst miss ≈ **\\${max_abs:,.2f}**  
+        • {bias_note}
+        """
+    )
+
 # Sidebar
-# =============================
 with st.sidebar:
     st.header("About this app")
     st.markdown(

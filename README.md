@@ -61,7 +61,7 @@ MAE (Mean Absolute Error): ~$2–$4 average daily miss.
 
 Residual plots show errors are mostly random and centered near 0, meaning the model generalizes well without systematic bias.
 
-##💡 Use Cases
+## 💡 Use Cases
 
 Finance & Trading: Support trading strategies with predictive insights.
 

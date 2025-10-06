@@ -5,15 +5,6 @@ It demonstrates the full lifecycle of a predictive analytics solution — from *
 
 ## 🌐 Live Demo
 
-🎯 **Try the App Here:**  
-👉 [Gold Price Prediction – Streamlit App](https://goldpriceprediction-project1.streamlit.app)
-
-<p align="center">
-  <a href="https://goldpriceprediction-project1.streamlit.app" target="_blank">
-    <img src="https://img.shields.io/badge/Live%20App-Streamlit-brightgreen?style=for-the-badge&logo=streamlit" alt="Streamlit App Link">
-  </a>
-</p>
-
 > 🖥️ **Live App:** [https://goldpriceprediction-project1.streamlit.app](https://goldpriceprediction-project1.streamlit.app)
 
 

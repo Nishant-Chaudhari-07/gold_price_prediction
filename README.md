@@ -5,7 +5,7 @@ It demonstrates the full lifecycle of a predictive analytics solution — from *
 
 ## 🌐 Live Demo
 
-> 🖥️ **Live App:** [https://goldpriceprediction-project1.streamlit.app](https://goldpriceprediction-project1.streamlit.app)
+ 🖥️ **Live App:** [https://goldpriceprediction-project1.streamlit.app](https://goldpriceprediction-project1.streamlit.app)
 
 
 ## 🚀 Project Overview
